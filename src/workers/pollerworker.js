@@ -2,19 +2,24 @@ import sleep from "../utils/sleeputil.js";
 import processjob from "./processorworker.js";
 import * as jobservice from "../services/jobservices.js";
 import logger from "../config/loggerconfig.js";
+import { updateheartbeat } from "../services/workerservices.js";
+import { recoverdeadworkers } from "../services/recoveryservices.js";
 
-const Polling_interval=5000;
+const startpolling = async (workername)=>{
 
-const startpolling = async ()=>{
-
-    // console.log("worker started");
-    logger.info("worker started!");
-
+    logger.info(`${workername} is searching for jobs...`);
 
     while(true){
 
         try {
-            const jobs = await jobservice.claimpendingjob();
+
+            await recoverdeadworkers();
+
+            await updateheartbeat(workername);
+            logger.info(`${workername} heartbeat updated!`);
+
+
+            const jobs = await jobservice.claimpendingjob(workername);
 
             if(!jobs){
                 logger.info("no pending jobs");
@@ -27,7 +32,7 @@ const startpolling = async ()=>{
                 }, "Job claimed");
 
                 console.log(`the job being executed is: ${jobs.id}`)
-                await processjob(jobs);
+                await processjob(jobs, workername);
                 
             }
 
@@ -35,12 +40,11 @@ const startpolling = async ()=>{
             logger.error(error);
         }
 
-        await sleep(Polling_interval);
+        await sleep(process.env.POLLING_INTERVAL || 20000);
     }
 }
 
 export default startpolling;
-
 
 
 //try catch here signifies that we should keep retrying the polling

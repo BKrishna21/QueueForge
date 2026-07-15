@@ -1,4 +1,5 @@
 import prisma from "../config/db.js";
+import { Prisma } from "@prisma/client";
 
 export const service = async (jobdata)=>{
     const job=await prisma.job.create({
@@ -17,54 +18,60 @@ export const getjobbyid = async (jobid)=>{
 };
 
 
-// export const findpendingjobs = async ()=>{
-//     return await prisma.job.findFirst({
-//         where:{
-//             status:"pending"
-//         },
-//         orderBy:{
-//             createdAt:"asc"
-//         }
-//     });
-// };
+
 
 // export const updatejobstatus = async (id,status)=>{
 
 //     return await prisma.job.update({
 //         where: {
-//             id
+//             id:id
 //         },
 //         data:{
-//             status
+//             status:status
 //         }
 //     });
 // }
 
 
-//combined the above find and update functions
-export const claimpendingjob = async ()=>{
+
+export const claimpendingjob = async (workername)=>{
 
     return await prisma.$transaction( async (tx)=>{
-        
-        const job = await tx.job.findFirst({
-            where: {
-                status: "pending"
-            },
-            orderBy: {
-                createdAt: "asc"
-            }
-        });
 
-        if(!job){
+        const jobs=await tx.$queryRaw`
+        SELECT *
+        FROM "job"
+        WHERE status ='pending'
+        ORDER BY "createdAt"
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+        `;
+        
+        if(jobs.length === 0){
             return null;
         }
+
+        const job = jobs[0];
+
+        // const job = await tx.job.findFirst({
+        //     where: {
+        //         status: "pending"
+        //     },
+        //     orderBy: {
+        //         createdAt: "asc"
+        //     }
+        // });
+        // if(!job){
+        //     return null;
+        // }
 
         return await tx.job.update({
             where:{
                 id: job.id
             },
             data:{
-                status: "success"
+                status: "running",
+                workername:workername
             }
         });
     });
