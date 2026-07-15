@@ -38,9 +38,6 @@ export const updateheartbeat = async (workername)=>{
 
 export const assignjob = async (workername, jobid) =>{
 
-    console.log(workername);
-    console.log(process.env.WORKER_NAME);
-
     return await prisma.worker.update({
         where:{
             name: workername

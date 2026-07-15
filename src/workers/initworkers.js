@@ -9,9 +9,6 @@ import { registerworker } from "../services/workerservices.js";
 
 const workername = process.env.WORKER_NAME || "worker";
 
-console.log("inside the initworker.js file:",workername);
-console.log("name from env file",process.env.WORKER_NAME);
-
 const startworker = async ()=>{
     try {
 

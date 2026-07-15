@@ -6,6 +6,7 @@ const emailhandler = async (job)=>{
 
     console.log(`sending email to: ${ job.payload.email }`);
     await sleep(3000);
+    // throw new Error("SMTP Timeout");
 
     logger.info("email sent!");    
 };
