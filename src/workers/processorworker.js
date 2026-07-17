@@ -15,8 +15,6 @@ export const isprocessingjob = ()=>{
 
 const processjob = async (job,workername) => {
 
-    //await jobservice.updatejobstatus(job.id, "running");
-
     const starttime = Date.now();
 
     processingjob = true;
@@ -32,25 +30,28 @@ const processjob = async (job,workername) => {
     await assignjob(workername,job.id);
     
     try {
+
         switch(job.type) {
+
             case "email": 
                 await emailhandler(job);
                 break;
             
             default:
                 logger.info(`unknown job type: ${job.type}`);
+
         }
+
         const processingtime = Date.now()-starttime;
         await updateworkerstatistics( workername,processingtime,true );
 
         await jobservice.updatejobstatus(job.id, "success");
 
     } catch (error) {
-
-        // await jobservice.updatejobstatus(job.id, "failed");
-        // throw error;
+        
         const processingtime=Date.now()-starttime;
         await updateworkerstatistics( workername,processingtime,false );
+
         logger.error(error);
         await jobservice.retryjob(job);
 

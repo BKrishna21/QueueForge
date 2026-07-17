@@ -94,5 +94,41 @@ export const updateworkerstatistics = async ( workername, processingtime, succes
                 increment:1
             } : undefined
         }
-    })
-}
+    });
+};
+
+
+export const electleader = async (workername)=>{
+    const leader = await prisma.worker.findFirst({
+        where: {
+            isleader: true,
+            status: {
+                not: "offline"
+            }
+        }
+    });
+
+    if(leader){
+        return leader;
+    }
+
+    return await prisma.worker.update({
+        where:{
+            name: workername
+        },
+        data:{
+            isleader: true
+        }
+    });
+};
+
+
+export const isleaderworker = async (workername)=>{
+    const worker = await prisma.worker.findUnique({
+        where: {
+            name: workername
+        }
+    });
+
+    return worker?.isleader;
+};

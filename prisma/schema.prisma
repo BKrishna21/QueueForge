@@ -37,4 +37,5 @@ model worker {
   successfuljobs  Int      @default(0)
   failedjobs      Int      @default(0)
   totalprocessingtime  Int @default(0)
+  isleader        Boolean  @default(false)
 }

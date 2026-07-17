@@ -6,7 +6,7 @@
 import prisma from "../config/db.js";
 import startpolling, { startshutdown } from "./pollerworker.js";
 import logger from "../config/loggerconfig.js";
-import { registerworker,updateworkerstatus } from "../services/workerservices.js";
+import { electleader, registerworker,updateworkerstatus } from "../services/workerservices.js";
 import { isprocessingjob } from "./processorworker.js";
 
 
@@ -18,6 +18,9 @@ const startworker = async ()=>{
         await registerworker(workername);
         logger.info(`${workername} registered successfully`);
 
+        await electleader(workername);
+        logger.info(`${workername} is elected as leader`);
+        
         await updateworkerstatus(workername,"idle");
         logger.info(`${workername} is ready`);
 

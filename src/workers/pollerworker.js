@@ -2,7 +2,7 @@ import sleep from "../utils/sleeputil.js";
 import processjob from "./processorworker.js";
 import * as jobservice from "../services/jobservices.js";
 import logger from "../config/loggerconfig.js";
-import { updateheartbeat } from "../services/workerservices.js";
+import { isleaderworker, updateheartbeat } from "../services/workerservices.js";
 import { recoverdeadworkers } from "../services/recoveryservices.js";
 
 let shuttingdown = false;
@@ -22,8 +22,11 @@ const startpolling = async (workername)=>{
     while(!shuttingdown){
 
         try {
-
-            await recoverdeadworkers();
+            
+            if(await isleaderworker(workername)){
+                await recoverdeadworkers();
+            }
+            
 
             await updateheartbeat(workername);
             logger.info(`${workername} heartbeat updated!`);

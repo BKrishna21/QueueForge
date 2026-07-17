@@ -4,14 +4,9 @@ A production-inspired distributed job processing platform built with Node.js, Ex
 
 ## Current Phase
 
-Phase 1 - Foundation
+Phase 3 - Worker Management
 
-## Features
 
-- Express API
-- PostgreSQL
-- Prisma
-- Background Worker (coming next)
 
 ## Phase 1: Architecture
 
@@ -46,3 +41,37 @@ Phase 1 - Foundation
                     │
                     ▼
              Update Job Status
+
+## Architecture at the end of phase 3:
+
+                           Client
+                              │
+                              ▼
+                       Express REST API
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+        ▼                     ▼                     ▼
+   Job Routes          Dashboard Routes      Worker APIs
+        │                     │
+        ▼                     ▼
+ Controllers            Controllers
+        │                     │
+        └──────────────┬──────┘
+                       ▼
+                  Service Layer
+        ┌──────────────┼──────────────────────────┐
+        │              │                          │
+        ▼              ▼                          ▼
+  Job Service    Worker Service          Dashboard Service
+        │              │                          │
+        ├──────────────┼───────────────┐          │
+        ▼              ▼               ▼          ▼
+ Retry Logic     Leader Election   Heartbeats   Metrics
+ Recovery         Lifecycle         Statistics  Overview
+        │
+        ▼
+ Prisma ORM
+        │
+        ▼
+ PostgreSQL

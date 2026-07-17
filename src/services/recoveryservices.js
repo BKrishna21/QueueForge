@@ -8,7 +8,7 @@ export const recoverdeadworkers = async () =>{
             lastheartbeat:{
                 lt:timeout
             },
-            status: "active"
+            status:"active"
         }
     });
     
@@ -19,7 +19,8 @@ export const recoverdeadworkers = async () =>{
             },
             data:{
                 status:"offline",
-                currentjobid: null
+                currentjobid: null,
+                isleader:false
             }
         });
 
@@ -34,6 +35,44 @@ export const recoverdeadworkers = async () =>{
             }
         });
     }
+
+
+    const currentleader = await prisma.worker.findFirst({
+        where: {
+            isleader: true,
+            status: {
+                not: "offline"
+            }
+        }
+    });
+
+    if (!currentleader) {
+
+        const nextleader = await prisma.worker.findFirst({
+            where: {
+                status: "idle"
+            },
+            orderBy: {
+                startedAt: "asc"
+            }
+        });
+
+        if (nextleader) {
+
+            await prisma.worker.update({
+                where: {
+                    id: nextleader.id
+                },
+                data: {
+                    isleader: true
+                }
+            });
+
+        }
+
+    }
+
+
 
     const expiredjobs = await prisma.job.findMany({
         where: {
