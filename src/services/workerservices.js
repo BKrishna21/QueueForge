@@ -9,14 +9,14 @@ export const registerworker = async (workername)=>{
         },
 
         update: {
-            status: "active",
+            status: "starting",
             currentjobid: null,
             lastheartbeat: new Date()
         },
 
         create: {
             name: workername,
-            status: "active",
+            status: "starting",
             currentjobid: null,
             lastheartbeat: new Date()
         }
@@ -56,6 +56,43 @@ export const clearcurrentjob = async (workername)=>{
         },
         data:{
             currentjobid: null
+        }
+    })
+};
+
+export const updateworkerstatus = async (workername,status)=>{
+    return await prisma.worker.update({
+        where:{
+            name: workername
+        },
+        data: {
+            status: status
+        }
+    });
+};
+
+
+export const updateworkerstatistics = async ( workername, processingtime, success )=>{
+    return await prisma.worker.update({
+        where:{
+            name: workername
+        },
+        data: {
+            jobsprocessed: {
+                increment:1
+            },
+
+            totalprocessingtime:{
+                increment:processingtime
+            },
+
+            successfuljobs: success ? {
+                increment:1
+            } : undefined,
+
+            failedjobs: !success ? {
+                increment:1
+            } : undefined
         }
     })
 }

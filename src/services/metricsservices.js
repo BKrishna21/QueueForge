@@ -3,11 +3,23 @@ import prisma from "../config/db.js";
 
 export const getworkers=async ()=>{
 
-    return await prisma.worker.findMany({
+    const workers = await prisma.worker.findMany({
         orderBy:{
             name:"asc"
         }
     });
+
+    return workers.map(worker => ({
+        ...worker,
+
+        averageprocessingtime:
+            worker.jobsprocessed === 0
+            ? 0
+            : Math.round(
+                worker.totalprocessingtime /
+                worker.jobsprocessed
+            )
+    }));
 };
 
 export const getworkerbyname= async (workername)=>{

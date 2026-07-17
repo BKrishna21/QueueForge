@@ -5,11 +5,21 @@ import logger from "../config/loggerconfig.js";
 import { updateheartbeat } from "../services/workerservices.js";
 import { recoverdeadworkers } from "../services/recoveryservices.js";
 
+let shuttingdown = false;
+
+export const startshutdown = ()=>{
+    shuttingdown = true;
+}
+
+export const isshuttingdown =()=>{
+    return shuttingdown;
+}
+
 const startpolling = async (workername)=>{
 
     logger.info(`${workername} is searching for jobs...`);
 
-    while(true){
+    while(!shuttingdown){
 
         try {
 
@@ -40,7 +50,7 @@ const startpolling = async (workername)=>{
             logger.error(error);
         }
 
-        await sleep(process.env.POLLING_INTERVAL || 20000);
+        await sleep(process.env.POLLING_INTERVAL || 10000);
     }
 }
 

@@ -2,18 +2,32 @@
 import logger from "../config/loggerconfig.js";
 import * as jobservice from "../services/jobservices.js";
 import emailhandler from "./jobhandlers/emailhandler.js";
-import { assignjob,clearcurrentjob } from "../services/workerservices.js";
+import { startshutdown } from "./pollerworker.js";
+import { assignjob,clearcurrentjob,updateworkerstatistics,updateworkerstatus } from "../services/workerservices.js";
+
+
+let processingjob = false;
+
+export const isprocessingjob = ()=>{
+    return processingjob;
+};
+
 
 const processjob = async (job,workername) => {
 
     //await jobservice.updatejobstatus(job.id, "running");
 
+    const starttime = Date.now();
+
+    processingjob = true;
+
     logger.info({
-        jobId: job.id,
+        jobid: job.id,
         priority: job.priority,
-        runAt: job.runAt
+        runat: job.runAt
     }, "Processing delayed job");
     
+    await updateworkerstatus(workername, "busy");
 
     await assignjob(workername,job.id);
     
@@ -26,20 +40,27 @@ const processjob = async (job,workername) => {
             default:
                 logger.info(`unknown job type: ${job.type}`);
         }
-        
+        const processingtime = Date.now()-starttime;
+        await updateworkerstatistics( workername,processingtime,true );
+
         await jobservice.updatejobstatus(job.id, "success");
 
     } catch (error) {
 
         // await jobservice.updatejobstatus(job.id, "failed");
         // throw error;
-
+        const processingtime=Date.now()-starttime;
+        await updateworkerstatistics( workername,processingtime,false );
         logger.error(error);
         await jobservice.retryjob(job);
 
     } finally {
 
         await  clearcurrentjob(workername);
+
+        await updateworkerstatus(workername, "idle");
+
+        processingjob=false;
 
     }    
 }

@@ -2,6 +2,11 @@ import prisma from "../config/db.js";
 import { Prisma } from "@prisma/client";
 import logger from "../config/loggerconfig.js";
 
+
+const VISIBILITY_TIMEOUT = Number(
+    process.env.VISIBILITY_TIMEOUT
+) || 30000;
+
 export const service = async (jobdata)=>{
     const job=await prisma.job.create({
         data:{
@@ -34,7 +39,9 @@ export const updatejobstatus = async (id,status)=>{
             id:id
         },
         data:{
-            status:status
+            status:status,
+            visibilitytimeout:null,
+            workername: null
         }
     });
 }
@@ -74,24 +81,13 @@ export const claimpendingjob = async (workername)=>{
             },
             data:{
                 status: "running",
-                workername:workername
+                workername:workername,
+
+                visibilitytimeout: new Date( Date.now() + VISIBILITY_TIMEOUT )
             }
         });
     });
 };
-
-// const job = await tx.job.findFirst({
-        //     where: {
-        //         status: "pending"
-        //     },
-        //     orderBy: {
-        //         createdAt: "asc"
-        //     }
-        // });
-        // if(!job){
-        //     return null;
-        // }
-
 
 
 export const retryjob = async (job)=>{

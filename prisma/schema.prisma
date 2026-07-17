@@ -23,6 +23,7 @@ model job {
   maxretries Int      @default(3)
   runat     DateTime  @default(now())
   priority  String    @default("medium")
+  visibilitytimeout   DateTime?
 }
 
 model worker {
@@ -32,4 +33,8 @@ model worker {
   currentjobid    String? @unique
   lastheartbeat   DateTime
   startedAt       DateTime @default(now())
+  jobsprocessed   Int      @default(0)
+  successfuljobs  Int      @default(0)
+  failedjobs      Int      @default(0)
+  totalprocessingtime  Int @default(0)
 }

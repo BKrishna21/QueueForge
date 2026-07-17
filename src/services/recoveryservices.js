@@ -34,4 +34,30 @@ export const recoverdeadworkers = async () =>{
             }
         });
     }
+
+    const expiredjobs = await prisma.job.findMany({
+        where: {
+            status: "running",
+            visibilitytimeout: {
+                lt:new Date()
+            }
+        }
+    });
+
+
+    for(const job of expiredjobs){
+        await prisma.job.update({
+            where:{
+                id: job.id
+            },
+            data: {
+                status: "pending",
+                visibilitytimeout: null,
+                workername: null
+            }
+        })
+    };
+
 };
+
+

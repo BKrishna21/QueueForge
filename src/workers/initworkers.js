@@ -3,9 +3,12 @@
 //     console.log("Looking for pending jobs....");
 // },10000);
 
-import startpolling from "./pollerworker.js";
+import prisma from "../config/db.js";
+import startpolling, { startshutdown } from "./pollerworker.js";
 import logger from "../config/loggerconfig.js";
-import { registerworker } from "../services/workerservices.js";
+import { registerworker,updateworkerstatus } from "../services/workerservices.js";
+import { isprocessingjob } from "./processorworker.js";
+
 
 const workername = process.env.WORKER_NAME || "worker";
 
@@ -14,6 +17,9 @@ const startworker = async ()=>{
 
         await registerworker(workername);
         logger.info(`${workername} registered successfully`);
+
+        await updateworkerstatus(workername,"idle");
+        logger.info(`${workername} is ready`);
 
         await startpolling(workername);
 
@@ -25,6 +31,51 @@ const startworker = async ()=>{
 }
 
 startworker();
+
+
+const gracefulshutdown = async (signal)=>{
+    logger.info(`${signal} received`);
+
+    startshutdown();
+
+    await updateworkerstatus(
+        workername,
+        "stopping"
+    );
+
+    while(isprocessingjob()){
+        logger.info("waiting for current job...");
+
+        await new Promise(
+            resolve => setTimeout(resolve,3000)
+        );
+    }
+
+    await updateworkerstatus(workername, "offline");
+
+    await prisma.$disconnect();
+    
+    logger.info("worker shutdown complete");
+
+    process.exit(0);
+};
+
+
+process.on(
+
+    "SIGINT",
+
+    () => gracefulshutdown("SIGINT")
+
+);
+
+process.on(
+
+    "SIGTERM",
+
+    () => gracefulshutdown("SIGTERM")
+
+);
 
 
 
