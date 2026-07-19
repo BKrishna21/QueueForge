@@ -6,6 +6,7 @@ import { errorhandler } from './middlewares/errorhandler.js';
 import metricsroutes from "./routes/metricsroutes.js";
 import dashboardroutes from "./routes/dashboardRoutes.js";
 import queueroutes from "./routes/queueroutes.js";
+import dlqroutes from "./routes/dlqroutes.js"
 
 const app=express();
 
@@ -43,6 +44,8 @@ app.use("/api", metricsroutes);
 app.use("/dashboard",dashboardroutes);
 
 app.use("/queues", queueroutes);
+
+app.use("/dlq", dlqroutes);
 
 app.use(errorhandler);
 

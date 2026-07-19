@@ -2,6 +2,8 @@ import prisma from "../config/db.js";
 import { Prisma } from "@prisma/client";
 import logger from "../config/loggerconfig.js";
 import { canprocessjob, getqueuebyname } from "./queueservices.js";
+import { movetodlq } from "./dlqservices.js";
+
 
 const VISIBILITY_TIMEOUT = Number(
     process.env.VISIBILITY_TIMEOUT
@@ -73,15 +75,16 @@ export const updatejobstatus = async (id,status)=>{
 export const claimpendingjob = async ( workername,queuename )=>{
 
     const queue = await getqueuebyname(queuename);
-    const allowed = await canprocessjob(queue);
+    if(!queue){
+        throw new Error("queue not found");
+    }
 
+    const allowed = await canprocessjob(queue);
     if(!allowed){
         logger.info(`${queuename} queue reached rate limit.`);
         return null;
     }
-    if(!queue){
-        throw new Error("queue not found");
-    }
+    
     if(queue.status === "paused"){
 
         logger.info(`${queuename} queue is paused.`);
@@ -132,26 +135,22 @@ export const claimpendingjob = async ( workername,queuename )=>{
 };
 
 
-export const retryjob = async (job)=>{
+export const retryjob = async ( job,workername,error )=>{
 
     const retrycount = job.retrycount+1;
 
-    if(retrycount > job.maxretries){
+    if(retrycount >= job.maxretries){
+
+        console.log("MOVING TO DLQ");
 
         logger.error({
             jobid: job.id
         }, "maximum retries exceeded");
 
 
-        return await prisma.job.update({
-            where:{
-                id:job.id
-            },
-            data:{
-                status:"failed",
-                retrycount
-            }
-        });
+        await movetodlq( job,workername,error,retrycount );
+
+        return;
 
     }
     

@@ -16,6 +16,7 @@ model job {
   type      String
   payload   Json
   status    String    @default("pending")
+  errormessage String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   workername String?
@@ -26,6 +27,8 @@ model job {
   visibilitytimeout   DateTime?
   queueid   String 
   queue queue @relation(fields: [queueid], references: [id])
+  deadletter  deadletterrecord?
+
 }
 
 model worker {
@@ -59,5 +62,16 @@ model queue {
   jobs            job[]
   lastresettime   DateTime @default(now())
   processedjobs   Int      @default(0)
+
+}
+
+model deadletterrecord {
+
+  id      String     @id @default(uuid())
+  jobid   String     @unique
+  job job @relation(fields: [jobid], references: [id])
+  failedat DateTime  @default(now())
+  failedbyworker  String?
+  errormessage  String?
 
 }

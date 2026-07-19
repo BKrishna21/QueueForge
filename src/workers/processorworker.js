@@ -55,7 +55,8 @@ const processjob = async (job,workername) => {
         await updateworkerstatistics( workername,processingtime,false );
 
         logger.error(error);
-        await jobservice.retryjob(job);
+
+        await jobservice.retryjob( job,workername,error );
 
     } finally {
 
