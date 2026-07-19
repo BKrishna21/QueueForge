@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 export const createjobschema = z.object({
+
+    queue: z.string().min(1, "queue name is required!!"),
+    
     type: z.string().min(1, "job type is required!!"),
 
     payload:z.object({}).passthrough(),

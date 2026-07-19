@@ -6,6 +6,10 @@ import asynchandler from "../utils/asynchandlerutil.js";
 export const createjob=asynchandler (async (req,res)=>{
 
         const jobData = req.body;
+
+        console.log("CONTROLLER:", jobData);
+
+
         const jobdata = await jobservice.service(jobData);
         res.status(201).json({
             success: true,
@@ -31,6 +35,23 @@ export const createjob=asynchandler (async (req,res)=>{
     // }
 
 });
+
+
+// export const createjob = asynchandler(async (req,res)=>{
+
+//     console.log("HEADERS:", req.headers);
+//     console.log("BODY:", req.body);
+
+//     const jobData = req.body;
+
+//     const jobdata = await jobservice.service(jobData);
+
+//     res.status(201).json({
+//         success:true,
+//         data:jobdata
+//     });
+
+// });
 
 
 export const getthejobbyid = asynchandler(async(req,res)=>{

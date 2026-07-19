@@ -15,7 +15,7 @@ export const isshuttingdown =()=>{
     return shuttingdown;
 }
 
-const startpolling = async (workername)=>{
+const startpolling = async (workername,queuename)=>{
 
     logger.info(`${workername} is searching for jobs...`);
 
@@ -32,7 +32,7 @@ const startpolling = async (workername)=>{
             logger.info(`${workername} heartbeat updated!`);
 
 
-            const jobs = await jobservice.claimpendingjob(workername);
+            const jobs = await jobservice.claimpendingjob(workername,queuename);
 
             if(!jobs){
                 logger.info("no pending jobs");

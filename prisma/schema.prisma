@@ -24,6 +24,8 @@ model job {
   runat     DateTime  @default(now())
   priority  String    @default("medium")
   visibilitytimeout   DateTime?
+  queueid   String 
+  queue queue @relation(fields: [queueid], references: [id])
 }
 
 model worker {
@@ -38,4 +40,24 @@ model worker {
   failedjobs      Int      @default(0)
   totalprocessingtime  Int @default(0)
   isleader        Boolean  @default(false)
+}
+
+
+model queue {
+
+  id              String   @id @default(uuid())
+  name            String   @unique
+  status          String   @default("active")
+  description     String?
+  defaultpriority String   @default("medium")
+  maxretries      Int      @default(3)
+  pollinterval    Int      @default(10000)
+  isratelimited   Boolean  @default(false)
+  maxjobsperminute Int     @default(60)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  jobs            job[]
+  lastresettime   DateTime @default(now())
+  processedjobs   Int      @default(0)
+
 }

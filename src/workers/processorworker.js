@@ -4,7 +4,7 @@ import * as jobservice from "../services/jobservices.js";
 import emailhandler from "./jobhandlers/emailhandler.js";
 import { startshutdown } from "./pollerworker.js";
 import { assignjob,clearcurrentjob,updateworkerstatistics,updateworkerstatus } from "../services/workerservices.js";
-
+import { incrementprocessedjobs } from "../services/queueservices.js";
 
 let processingjob = false;
 
@@ -46,6 +46,8 @@ const processjob = async (job,workername) => {
         await updateworkerstatistics( workername,processingtime,true );
 
         await jobservice.updatejobstatus(job.id, "success");
+
+        await incrementprocessedjobs(job.queueid);
 
     } catch (error) {
         

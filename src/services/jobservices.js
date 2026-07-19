@@ -1,22 +1,37 @@
 import prisma from "../config/db.js";
 import { Prisma } from "@prisma/client";
 import logger from "../config/loggerconfig.js";
-
+import { canprocessjob, getqueuebyname } from "./queueservices.js";
 
 const VISIBILITY_TIMEOUT = Number(
     process.env.VISIBILITY_TIMEOUT
 ) || 30000;
 
 export const service = async (jobdata)=>{
+
+    const queue = await getqueuebyname(jobdata.queue);
+
+    console.log("JOB DATA RECEIVED:", jobdata);
+    console.log("QUEUE VALUE:", jobdata.queue);
+
+    if(!queue){
+        throw new Error("queue not found");
+    }
+
+
     const job=await prisma.job.create({
         data:{
+
+            queueid: queue.id,
             type: jobdata.type,
             payload: jobdata.payload,
-            priority: jobdata.priority || "medium",
+            priority: jobdata.priority || queue.defaultpriority,
+            maxretries: queue.maxretries,
             status: "pending",
             runat: jobdata.runat
                 ? new Date(jobdata.runat)
                 : new Date()
+            
         } 
     });
     
@@ -27,8 +42,15 @@ export const getjobbyid = async (jobid)=>{
     return await prisma.job.findUnique({
         where: {
             id: jobid
+        },
+        include: {
+            queue:{
+                select:{
+                    name: true
+                }
+            }
         }
-    })
+    });
 };
 
 
@@ -48,7 +70,26 @@ export const updatejobstatus = async (id,status)=>{
 
 
 
-export const claimpendingjob = async (workername)=>{
+export const claimpendingjob = async ( workername,queuename )=>{
+
+    const queue = await getqueuebyname(queuename);
+    const allowed = await canprocessjob(queue);
+
+    if(!allowed){
+        logger.info(`${queuename} queue reached rate limit.`);
+        return null;
+    }
+    if(!queue){
+        throw new Error("queue not found");
+    }
+    if(queue.status === "paused"){
+
+        logger.info(`${queuename} queue is paused.`);
+        return null;
+
+    }
+
+    const queueid = queue.id;
 
     return await prisma.$transaction( async (tx)=>{
 
@@ -56,6 +97,7 @@ export const claimpendingjob = async (workername)=>{
         SELECT *
         FROM "job"
         WHERE status ='pending'
+        AND "queueid" = ${queueid}
         AND "runat" <= NOW()
         ORDER BY 
         CASE

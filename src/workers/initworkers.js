@@ -11,6 +11,7 @@ import { isprocessingjob } from "./processorworker.js";
 
 
 const workername = process.env.WORKER_NAME || "worker";
+const queuename  = process.env.QUEUE_NAME  || "queue";
 
 const startworker = async ()=>{
     try {
@@ -24,7 +25,7 @@ const startworker = async ()=>{
         await updateworkerstatus(workername,"idle");
         logger.info(`${workername} is ready`);
 
-        await startpolling(workername);
+        await startpolling( workername,queuename );
 
     } catch (error) {
         logger.error(error);

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "queue" ADD COLUMN     "lastresettime" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "processedjobs" INTEGER NOT NULL DEFAULT 0;
