@@ -186,29 +186,18 @@ export const getqueuedashboard = async () => {
             return {
 
                 id: queue.id,
-
                 name: queue.name,
-
                 status: queue.status,
-
                 defaultpriority: queue.defaultpriority,
-
                 maxretries: queue.maxretries,
-
                 pollinterval: queue.pollinterval,
-
                 isratelimited: queue.isratelimited,
-
                 maxjobsperminute: queue.maxjobsperminute,
-
                 processedjobs: queue.processedjobs,
-
+                timeout: queue.timeout,
                 pendingjobs,
-
                 runningjobs,
-
                 successjobs,
-
                 failedjobs
 
             };

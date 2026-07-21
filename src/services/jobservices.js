@@ -5,9 +5,11 @@ import { canprocessjob, getqueuebyname } from "./queueservices.js";
 import { movetodlq } from "./dlqservices.js";
 
 
-const VISIBILITY_TIMEOUT = Number(
-    process.env.VISIBILITY_TIMEOUT
-) || 30000;
+// const VISIBILITY_TIMEOUT = 
+// Number( process.env.VISIBILITY_TIMEOUT ) || 30000;
+
+const JOB_TIMEOUT = 
+Number( process.env.JOB_TIMEOUT ) || 30000;
 
 export const service = async (jobdata)=>{
 
@@ -56,17 +58,27 @@ export const getjobbyid = async (jobid)=>{
 };
 
 
-export const updatejobstatus = async (id,status)=>{
+export const updatejobstatus = async (id,status,result=null )=>{
+
+    const updatedata = {
+        status,
+        visibilitytimeout:null,
+        workername:null
+    }
+
+    if(status === "success"){
+        updatedata.progress = 100;
+    }
+
+    if( result !== null){
+        updatedata.result=result;
+    }
 
     return await prisma.job.update({
         where: {
             id:id
         },
-        data:{
-            status:status,
-            visibilitytimeout:null,
-            workername: null
-        }
+        data:updatedata
     });
 }
 
@@ -120,15 +132,30 @@ export const claimpendingjob = async ( workername,queuename )=>{
         const job = jobs[0];
 
         
+        // return await tx.job.update({
+        //     where:{
+        //         id: job.id
+        //     },
+        //     data:{
+        //         status: "running",
+        //         workername:workername,
+
+        //         visibilitytimeout: new Date( Date.now() + VISIBILITY_TIMEOUT )
+        //     }
+        // });
+
+
         return await tx.job.update({
-            where:{
+            where: {
                 id: job.id
             },
-            data:{
+            data: {
                 status: "running",
-                workername:workername,
-
-                visibilitytimeout: new Date( Date.now() + VISIBILITY_TIMEOUT )
+                workername: workername,
+                visibilitytimeout: new Date(Date.now() + VISIBILITY_TIMEOUT)
+            },
+            include: {
+                queue: true
             }
         });
     });
@@ -176,4 +203,146 @@ export const retryjob = async ( job,workername,error )=>{
             workername:null
         }
     });
-}
+};
+
+
+export const updatejobprogress = async (jobid,progress) => {
+    const job = await prisma.job.update({
+        where:{
+            id:jobid
+        },
+        data: {
+            progress
+        }
+    });
+
+    logger.info({
+        jobid: jobid,
+        progress
+    }, "Job progress updated");
+
+    return job;
+
+};
+
+export const getjobstatus = async (jobid) => {
+    return await prisma.job.findUnique({
+        where: {
+            id: jobid
+        },
+
+        select: {
+
+            id: true,
+            status: true,
+            progress: true,
+            workername: true,
+            createdAt: true,
+            updatedAt: true,
+            retrycount: true,
+            maxretries: true,
+            priority: true,
+            runat: true,
+            startedat: true,
+            completedat: true,
+            timeoutat: true,
+            queue: {
+                select: {
+                    name: true
+                }
+            }
+        }
+    });
+};
+
+
+export const updatejobresult = async (jobid,result) => {
+
+    return await prisma.job.update({
+        where: {
+            id: jobid
+        },
+        data: {
+            result
+        }
+    });
+
+};
+
+export const markjobstarted = async ( jobid,timeout )=>{
+
+    const timeoutAt = new Date(
+        Date.now()+timeout
+    );
+
+    return await prisma.job.update({
+        where:{
+            id:jobid
+        },
+        data:{
+            startedat:new Date(),
+            timeoutat:timeoutAt
+        }
+    });
+};
+
+
+export const markjobcompleted = async(jobid)=>{
+
+    return await prisma.job.update({
+        where:{
+            id:jobid
+        },
+        data:{
+            completedat:new Date(),
+            timeoutat:null
+        }
+    });
+};
+
+
+
+
+export const canceljob = async (jobid) => {
+
+    const job = await prisma.job.findUnique({
+        where: {
+            id: jobid
+        }
+    });
+
+    if (!job) {
+        return null;
+    }
+    if (["success", "failed", "cancelled"].includes(job.status)) {
+        return job;
+    }
+    return await prisma.job.update({
+        where: {
+            id: jobid
+        },
+        data: {
+            status: "cancelled",
+            workername: null,
+            visibilitytimeout: null
+        }
+    });
+};
+
+export const iscancelled = async (jobid) => {
+
+    const job = await prisma.job.findUnique({
+
+        where: {
+            id: jobid
+        },
+
+        select: {
+            status: true
+        }
+
+    });
+
+    return job?.status === "cancelled";
+
+};

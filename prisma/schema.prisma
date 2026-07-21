@@ -16,6 +16,8 @@ model job {
   type      String
   payload   Json
   status    String    @default("pending")
+  progress  Int       @default(0)
+  result    Json?
   errormessage String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -28,7 +30,10 @@ model job {
   queueid   String 
   queue queue @relation(fields: [queueid], references: [id])
   deadletter  deadletterrecord?
-
+  startedat  DateTime?
+  completedat DateTime?
+  timeoutat  DateTime?
+  
 }
 
 model worker {
@@ -43,6 +48,7 @@ model worker {
   failedjobs      Int      @default(0)
   totalprocessingtime  Int @default(0)
   isleader        Boolean  @default(false)
+
 }
 
 
@@ -62,6 +68,7 @@ model queue {
   jobs            job[]
   lastresettime   DateTime @default(now())
   processedjobs   Int      @default(0)
+  timeout         Int      @default(30000)
 
 }
 

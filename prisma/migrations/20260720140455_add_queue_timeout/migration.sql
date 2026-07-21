@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "queue" ADD COLUMN     "timeout" INTEGER NOT NULL DEFAULT 30000;
