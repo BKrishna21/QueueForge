@@ -5,6 +5,8 @@ import emailhandler from "./jobhandlers/emailhandler.js";
 import { startshutdown } from "./pollerworker.js";
 import { assignjob,clearcurrentjob,updateworkerstatistics,updateworkerstatus } from "../services/workerservices.js";
 import { incrementprocessedjobs } from "../services/queueservices.js";
+import { jobprocessinghistogram } from "../metrics/metrics.js";
+
 
 let processingjob = false;
 
@@ -71,6 +73,7 @@ const processjob = async (job,workername) => {
         clearTimeout(timeoutid);
 
         const processingtime = Date.now()-starttime;
+        jobprocessinghistogram.observe( processingtime/1000 );
         await updateworkerstatistics( workername,processingtime,true );
 
         await jobservice.updatejobstatus( job.id, "success",result );
@@ -84,6 +87,7 @@ const processjob = async (job,workername) => {
 
 
         const processingtime=Date.now()-starttime;
+        jobprocessinghistogram.observe( processingtime/1000 );
         await updateworkerstatistics( workername,processingtime,false );
 
         logger.error({

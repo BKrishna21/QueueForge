@@ -8,9 +8,6 @@ export const createjob=asynchandler (async (req,res)=>{
 
         const jobData = req.body;
 
-        console.log("CONTROLLER:", jobData);
-
-
         const jobdata = await jobservice.service(jobData);
         res.status(201).json({
             success: true,

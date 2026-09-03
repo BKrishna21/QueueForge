@@ -1,8 +1,10 @@
 import prisma from "../config/db.js";
-
+import { workersonlinegauge,workersbusygauge,workersidlegauge,workersofflinegauge } from "../metrics/metrics.js";
 
 export const registerworker = async (workername)=>{
-    return await prisma.worker.upsert({
+    
+    
+    const worker = await prisma.worker.upsert({
         
         where: {
             name: workername
@@ -21,6 +23,11 @@ export const registerworker = async (workername)=>{
             lastheartbeat: new Date()
         }
     });
+
+    await refreshworkermetrics();
+
+    return worker;
+
 };
 
 
@@ -61,7 +68,7 @@ export const clearcurrentjob = async (workername)=>{
 };
 
 export const updateworkerstatus = async (workername,status)=>{
-    return await prisma.worker.update({
+    const worker = await prisma.worker.update({
         where:{
             name: workername
         },
@@ -69,6 +76,10 @@ export const updateworkerstatus = async (workername,status)=>{
             status: status
         }
     });
+
+    await refreshworkermetrics();
+
+    return worker;
 };
 
 
@@ -131,4 +142,53 @@ export const isleaderworker = async (workername)=>{
     });
 
     return worker?.isleader;
+};
+
+
+const refreshworkermetrics = async () => {
+
+    const workers = await prisma.worker.findMany({
+        select: {
+            status: true
+        }
+    });
+
+    let online = 0;
+    let busy = 0;
+    let idle = 0;
+    let offline = 0;
+
+    for (const worker of workers) {
+
+        switch (worker.status) {
+
+            case "busy":
+                busy++;
+                online++;
+                break;
+
+            case "idle":
+                idle++;
+                online++;
+                break;
+
+            case "starting":
+                online++;
+                break;
+
+            case "offline":
+                offline++;
+                break;
+
+            default:
+                break;
+        }
+
+    }
+
+    workersonlinegauge.set(online);
+    workersbusygauge.set(busy);
+    workersidlegauge.set(idle);
+    workersofflinegauge.set(offline);
+
 };

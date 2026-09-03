@@ -1,54 +1,7 @@
+
 import prisma from "../config/db.js";
+import { jobsdlqcounter,updatejobstatemetrics } from "../metrics/metrics.js";
 
-// export const movetodlq = async (
-
-//     job,
-//     workername,
-//     error,
-//     retrycount
-
-
-// ) => {
-
-//     await prisma.deadletterrecord.create({
-
-//         data: {
-
-//             retrycount: retrycount,
-
-//             jobid: job.id,
-
-//             failedbyworker: workername,
-
-//             errormessage: error.message
-
-//         }
-
-//     });
-
-//     return await prisma.job.update({
-
-//         where: {
-
-//             id: job.id
-
-//         },
-
-//         data: {
-
-//             status: "dead",
-
-//             errormessage: error.message,
-
-//             visibilitytimeout: null,
-
-//             workername: null
-
-//         }
-
-//     });
-
-// };
 
 
 
@@ -70,7 +23,11 @@ export const movetodlq = async (
             }
         });
 
-        return await tx.job.update({
+        
+
+        
+
+        const updatedJob = await tx.job.update({
             where: {
                 id: job.id
             },
@@ -82,6 +39,15 @@ export const movetodlq = async (
                 workername: null
             }
         });
+
+        jobsdlqcounter.inc();
+
+        updatejobstatemetrics(
+            "running",
+            "dead"
+        );
+
+        return updatedJob;
 
     });
 

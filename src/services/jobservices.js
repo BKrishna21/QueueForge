@@ -5,8 +5,10 @@ import { canprocessjob, getqueuebyname } from "./queueservices.js";
 import { movetodlq } from "./dlqservices.js";
 
 
-// const VISIBILITY_TIMEOUT = 
-// Number( process.env.VISIBILITY_TIMEOUT ) || 30000;
+import { jobscreatedcounter,jobscompletedcounter,jobsfailedcounter,jobscancelledcounter,jobsretriedcounter, updatejobstatemetrics } from "../metrics/metrics.js";
+
+const VISIBILITY_TIMEOUT = 
+Number( process.env.VISIBILITY_TIMEOUT ) || 30000;
 
 const JOB_TIMEOUT = 
 Number( process.env.JOB_TIMEOUT ) || 30000;
@@ -14,9 +16,6 @@ Number( process.env.JOB_TIMEOUT ) || 30000;
 export const service = async (jobdata)=>{
 
     const queue = await getqueuebyname(jobdata.queue);
-
-    console.log("JOB DATA RECEIVED:", jobdata);
-    console.log("QUEUE VALUE:", jobdata.queue);
 
     if(!queue){
         throw new Error("queue not found");
@@ -38,6 +37,10 @@ export const service = async (jobdata)=>{
             
         } 
     });
+
+    jobscreatedcounter.inc();
+
+    updatejobstatemetrics(null, "pending" )
     
     return job;
 };
@@ -74,12 +77,41 @@ export const updatejobstatus = async (id,status,result=null )=>{
         updatedata.result=result;
     }
 
-    return await prisma.job.update({
+    const existingJob = await prisma.job.findUnique({
+        where: {
+            id
+        },
+        select: {
+            status: true
+        }
+    });
+
+    const updatedJob = await prisma.job.update({
         where: {
             id:id
         },
         data:updatedata
     });
+
+    updatejobstatemetrics( existingJob.status, status );
+
+    switch(status) {
+
+        case "success":
+            jobscompletedcounter.inc();
+            break;
+        
+        case "failed":
+            jobsfailedcounter.inc();
+            break;
+        
+        case "cancelled":
+            jobscancelledcounter.inc();
+            break;
+
+    }
+
+    return updatedJob;
 }
 
 
@@ -145,7 +177,9 @@ export const claimpendingjob = async ( workername,queuename )=>{
         // });
 
 
-        return await tx.job.update({
+        
+
+        const updatedJob = await tx.job.update({
             where: {
                 id: job.id
             },
@@ -158,6 +192,11 @@ export const claimpendingjob = async ( workername,queuename )=>{
                 queue: true
             }
         });
+
+        updatejobstatemetrics("pending","running");
+
+        return updatedJob;
+
     });
 };
 
@@ -173,9 +212,9 @@ export const retryjob = async ( job,workername,error )=>{
         logger.error({
             jobid: job.id
         }, "maximum retries exceeded");
+        
 
-
-        await movetodlq( job,workername,error,retrycount );
+        // await movetodlq( job,workername,error,retrycount );
 
         return;
 
@@ -191,8 +230,9 @@ export const retryjob = async ( job,workername,error )=>{
         nextrun: runat
     },"Job scheduled for retry");
 
+    jobsretriedcounter.inc();
 
-    return await prisma.job.update({
+    const updatedJob = await prisma.job.update({
         where:{
             id:job.id
         },
@@ -203,6 +243,11 @@ export const retryjob = async ( job,workername,error )=>{
             workername:null
         }
     });
+
+    updatejobstatemetrics("running","pending");
+
+    return updatedJob;
+
 };
 
 
@@ -317,7 +362,12 @@ export const canceljob = async (jobid) => {
     if (["success", "failed", "cancelled"].includes(job.status)) {
         return job;
     }
-    return await prisma.job.update({
+
+    jobscancelledcounter.inc();
+    
+    
+
+    const updatedJob = await prisma.job.update({
         where: {
             id: jobid
         },
@@ -327,6 +377,10 @@ export const canceljob = async (jobid) => {
             visibilitytimeout: null
         }
     });
+
+    updatejobstatemetrics( job.status, "cancelled" );
+
+    return updatedJob;
 };
 
 export const iscancelled = async (jobid) => {

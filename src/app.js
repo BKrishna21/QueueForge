@@ -6,7 +6,10 @@ import { errorhandler } from './middlewares/errorhandler.js';
 import metricsroutes from "./routes/metricsroutes.js";
 import dashboardroutes from "./routes/dashboardRoutes.js";
 import queueroutes from "./routes/queueroutes.js";
-import dlqroutes from "./routes/dlqroutes.js"
+import dlqroutes from "./routes/dlqroutes.js";
+import metricsmontroutes from "./routes/metricsmontroutes.js";
+import { getmetrics } from './controllers/meticsmontcontroller.js';
+
 
 const app=express();
 
@@ -46,6 +49,8 @@ app.use("/dashboard",dashboardroutes);
 app.use("/queues", queueroutes);
 
 app.use("/dlq", dlqroutes);
+
+app.use("/metricsapi", getmetrics );
 
 app.use(errorhandler);
 
