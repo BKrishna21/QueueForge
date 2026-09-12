@@ -4,7 +4,7 @@ import prisma from './config/db.js';
 import jobroutes from "./routes/jobroutes.js";
 import { errorhandler } from './middlewares/errorhandler.js';
 import metricsroutes from "./routes/metricsroutes.js";
-import dashboardroutes from "./routes/dashboardRoutes.js";
+import dashboardroutes from "./routes/dashboardroutes.js";
 import queueroutes from "./routes/queueroutes.js";
 import dlqroutes from "./routes/dlqroutes.js";
 import metricsmontroutes from "./routes/metricsmontroutes.js";

@@ -1,8 +1,7 @@
 
 import prisma from "../config/db.js";
 import { jobsdlqcounter,updatejobstatemetrics } from "../metrics/metrics.js";
-
-
+import { invalidatejobstatuscache } from "../utils/jobcacheutil.js";
 
 
 export const movetodlq = async (
@@ -12,7 +11,7 @@ export const movetodlq = async (
     retrycount
 ) => {
 
-    return await prisma.$transaction(async (tx) => {
+    const updatedJob = await prisma.$transaction(async (tx) => {
 
         await tx.deadletterrecord.create({
             data: {
@@ -22,10 +21,6 @@ export const movetodlq = async (
                 errormessage: error.message
             }
         });
-
-        
-
-        
 
         const updatedJob = await tx.job.update({
             where: {
@@ -48,8 +43,10 @@ export const movetodlq = async (
         );
 
         return updatedJob;
-
     });
+     await invalidatejobstatuscache(updatedJob.id);
+
+     return updatedJob;
 
 };
 
@@ -148,6 +145,8 @@ export const replaydeadjob = async (id) => {
             runat: new Date()
         }
     });
+
+    await invalidatejobstatuscache(deadjob.job.id);
 
     await prisma.deadletterrecord.delete({
 

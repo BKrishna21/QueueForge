@@ -1,4 +1,5 @@
 import prisma from "../config/db.js";
+import { invalidatejobstatuscache } from "../utils/jobcacheutil.js";
 
 export const recoverdeadworkers = async () =>{
     const timeout = new Date(Date.now() - 15000);
@@ -24,6 +25,16 @@ export const recoverdeadworkers = async () =>{
             }
         });
 
+        const affectedjobs = await prisma.job.findMany({
+            where: {
+                workername: worker.name,
+                status: "running"
+            },
+            select: {
+                id: true
+            }
+        });
+
         await prisma.job.updateMany({
             where:{
                 workername: worker.name,
@@ -34,6 +45,10 @@ export const recoverdeadworkers = async () =>{
                 workername:null
             }
         });
+
+        for (const job of affectedjobs) {
+            await invalidatejobstatuscache(job.id);
+        }
     }
 
 
@@ -95,6 +110,8 @@ export const recoverdeadworkers = async () =>{
                 workername: null
             }
         })
+
+        await invalidatejobstatuscache(job.id);
     };
 
 };

@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 import logger from "../config/loggerconfig.js";
 import { canprocessjob, getqueuebyname } from "./queueservices.js";
 import { movetodlq } from "./dlqservices.js";
-
+import redis from "../config/redis.js";
+import { invalidatejobstatuscache } from "../utils/jobcacheutil.js";
 
 import { jobscreatedcounter,jobscompletedcounter,jobsfailedcounter,jobscancelledcounter,jobsretriedcounter, updatejobstatemetrics } from "../metrics/metrics.js";
 
@@ -111,10 +112,12 @@ export const updatejobstatus = async (id,status,result=null )=>{
 
     }
 
+    if (existingJob.status !== status) { 
+        await invalidatejobstatuscache(id); 
+    }
+
     return updatedJob;
 }
-
-
 
 export const claimpendingjob = async ( workername,queuename )=>{
 
@@ -138,7 +141,7 @@ export const claimpendingjob = async ( workername,queuename )=>{
 
     const queueid = queue.id;
 
-    return await prisma.$transaction( async (tx)=>{
+    const updatedJob =  await prisma.$transaction( async (tx)=>{
 
         const jobs=await tx.$queryRaw`
         SELECT *
@@ -195,6 +198,9 @@ export const claimpendingjob = async ( workername,queuename )=>{
 
         updatejobstatemetrics("pending","running");
 
+        if(updatedJob){
+            await invalidatejobstatuscache(updatedJob.id);
+        } 
         return updatedJob;
 
     });
@@ -246,6 +252,8 @@ export const retryjob = async ( job,workername,error )=>{
 
     updatejobstatemetrics("running","pending");
 
+    await invalidatejobstatuscache(job.id);
+
     return updatedJob;
 
 };
@@ -270,27 +278,67 @@ export const updatejobprogress = async (jobid,progress) => {
 
 };
 
+// export const getjobstatus = async (jobid) => {
+//     return await prisma.job.findUnique({
+//         where: {
+//             id: jobid
+//         },
+
+//         select: {
+
+//             id: true,
+//             status: true,
+//             progress: true,
+//             workername: true,
+//             createdAt: true,
+//             updatedAt: true,
+//             retrycount: true,
+//             maxretries: true,
+//             priority: true,
+//             runat: true,
+//             startedat: true,
+//             completedat: true,
+//             timeoutat: true,
+//             queue: {
+//                 select: {
+//                     name: true
+//                 }
+//             }
+//         }
+//     });
+// };
+
+
 export const getjobstatus = async (jobid) => {
-    return await prisma.job.findUnique({
+
+    const cachekey = `job:${jobid}:status`;
+
+    const cachedstatus = await redis.get(cachekey);
+
+    if (cachedstatus) {
+
+        console.log(`Job status cache HIT: ${jobid}`);
+
+        return JSON.parse(cachedstatus);
+    }
+
+    console.log(`Job status cache MISS: ${jobid}`);
+
+    // Redis miss → query PostgreSQL
+    const job = await prisma.job.findUnique({
         where: {
             id: jobid
         },
-
         select: {
-
-            id: true,
             status: true,
             progress: true,
             workername: true,
-            createdAt: true,
-            updatedAt: true,
+            startedat: true,
+            completedat: true,
             retrycount: true,
             maxretries: true,
             priority: true,
             runat: true,
-            startedat: true,
-            completedat: true,
-            timeoutat: true,
             queue: {
                 select: {
                     name: true
@@ -298,6 +346,34 @@ export const getjobstatus = async (jobid) => {
             }
         }
     });
+
+    if (!job) {
+        return null;
+    }
+
+    const result = {
+        status: job.status,
+        progress: job.progress,
+        workername: job.workername,
+        startedat: job.startedat,
+        completedat: job.completedat,
+        retrycount: job.retrycount,
+        maxretries: job.maxretries,
+        priority: job.priority,
+        runat: job.runat,
+        queue: job.queue?.name
+    };
+
+    // Store result in Redis for 60 seconds
+    await redis.set(
+        cachekey,
+        JSON.stringify(result),
+        {
+            EX: 60
+        }
+    );
+
+    return result;
 };
 
 
@@ -379,6 +455,8 @@ export const canceljob = async (jobid) => {
     });
 
     updatejobstatemetrics( job.status, "cancelled" );
+
+    await invalidatejobstatuscache(jobid);
 
     return updatedJob;
 };
