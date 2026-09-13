@@ -1,5 +1,9 @@
 import express from 'express';
 import { success } from 'zod';
+
+import swaggerUi from "swagger-ui-express";
+import swaggerspec from './config/swagger.js';
+
 import prisma from './config/db.js';
 import jobroutes from "./routes/jobroutes.js";
 import { errorhandler } from './middlewares/errorhandler.js';
@@ -14,6 +18,9 @@ import { getmetrics } from './controllers/meticsmontcontroller.js';
 const app=express();
 
 app.use(express.json());
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerspec));
+
 
 app.get("/", (req,res)=>{
     res.status(200).json({
