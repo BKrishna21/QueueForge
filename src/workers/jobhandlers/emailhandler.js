@@ -13,7 +13,7 @@ const emailhandler = async (job)=>{
     logger.info("preparing email...");
     await updatejobprogress(job.id, 20);
     await sleep(1000);
-    await throwIfCancelled(job.id);
+    await throwifcancelled(job.id);
 
     logger.info("connecting to smtp server...");
     await updatejobprogress(job.id, 40);

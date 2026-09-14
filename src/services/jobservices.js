@@ -220,7 +220,7 @@ export const retryjob = async ( job,workername,error )=>{
         }, "maximum retries exceeded");
         
 
-        // await movetodlq( job,workername,error,retrycount );
+        await movetodlq( job,workername,error,retrycount );
 
         return;
 
